@@ -1,101 +1,54 @@
-fun kmain() -> void {
-    cli();
+const WHITE_TXT: u8 = 0x07;
 
-    var sink: i64 = 0;
-    sink = sink + k_clear_screen();
-    sink = sink + vga_put('A', 0);
-    sink = sink + vga_put('B', 2);
-    sink = sink + vga_put('C', 4);
-
-    while (true) {
-        var dummy: i64;
-        asm {
-            "hlt"
-            out("rax") dummy
-            in("rdx") sink
-        }
-    }
-}
-
-fun cli() {
-    var dummy: i64;
-    asm {
-        "cli"
-        out("rax") dummy
-    }
-}
-
-fun vga_put(c: char, pos: i32) -> i64 {
-    var outv: i64;
-    var ch: i64 = c;
-    var off: i64 = pos;
+fun mmio_write8(addr: ptr<u8>, value: u8) {
+    addr[0] = value;
 
     asm {
-        "mov rdi, 0xb8000"
-        "add rdi, rsi"
-        "mov al, dl"
-        "mov BYTE PTR [rdi], al"
-        "mov BYTE PTR [rdi+1], 0x07"
-        "mov rax, 1"
-        out("rax") outv
-        in("rsi") off
-        in("rdx") ch
+        clobber("memory")
     }
-
-    return outv;
 }
 
-fun k_clear_screen() -> i64 {
+fun k_clear_screen() {
+    var vidmem: ptr<u8> = 0xb8000 as ptr<u8>;
     var i: i32 = 0;
-    var sum: i64 = 0;
 
-    while (i < 80 * 25) {
-        var offset: i64 = i * 2;
-        var outv: i64;
+    while (i < 80 * 25 * 2) {
+        mmio_write8(vidmem + i, ' ' as u8);
+        i = i + 1;
 
-        asm {
-            "mov rdi, 0xb8000"
-            "add rdi, rsi"
-            "mov WORD PTR [rdi], 0x0720"
-            "mov rax, 1"
-            out("rax") outv
-            in("rsi") offset
+        mmio_write8(vidmem + i, WHITE_TXT);
+        i = i + 1;
+    }
+}
+
+fun k_printf(message: ptr<u8>, line: i32) -> i32 {
+    var current_line: i32 = line;
+    var msg: ptr<u8> = message;
+    var vidmem: ptr<u8> = 0xb8000 as ptr<u8>;
+    var i: i32 = current_line * 80 * 2;
+
+    while (msg[0] != 0) {
+
+        if (msg[0] == '\n' as u8) {
+            current_line = current_line + 1;
+            i = current_line * 80 * 2;
+            msg = msg + 1;
+        } else {
+            mmio_write8(vidmem + i, msg[0]);
+            msg = msg + 1;
+            i = i + 1;
+
+            mmio_write8(vidmem + i, WHITE_TXT);
+            i = i + 1;
         }
-
-        sum = sum + outv;
-        i = i + 1;
     }
 
-    return sum;
+    return 1;
 }
 
+fun k_main() {
+    k_clear_screen();
+    k_printf("Hello, world! Welcome to my kernel.", 0);
 
-fun kprint_at(msg: ptr<char>, row: i32) {
-    var i: i32 = 0;
-    var col: i32 = 0;
-
-    while (deref msg[i] != 0) {
-        var pos: i32 = (row * 80 + col) * 2;
-        vga_put(deref msg[i], pos);
-        col = col + 1;
-        i = i + 1;
-    }
-}
-
-fun kprint(msg: ptr<char>) {
-    var static_row: i32 = 0;
-
-    kprint_at(msg, static_row);
-}
-
-fun kprintln_at(row: i32, msg: ptr<char>) {
-    var i: i32 = 0;
-    var col: i32 = 0;
-
-    while (deref msg[i] != 0) {
-        var pos: i32 = (row * 80 + col) * 2;
-        vga_put(deref msg[i], pos);
-        col = col + 1;
-        i = i + 1;
-    }
+    while (true) { }
 }
