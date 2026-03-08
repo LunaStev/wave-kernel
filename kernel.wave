@@ -1,54 +1,375 @@
-const WHITE_TXT: u8 = 0x07;
+const VGA_WIDTH: i32 = 80;
+const VGA_HEIGHT: i32 = 25;
+const VGA_ATTR: u8 = 0x0F;
+static CUR_ROW: i32 = 0;
+static CUR_COL: i32 = 0;
+static TIMER_TICKS: i64 = 0;
+
+static INPUT_LEN: i32 = 0;
+static INPUT_BUF: array<u8, 128>;
+
+extern(c) {
+    fun asm_enable_interrupts();
+    fun asm_disable_interrupts();
+    fun asm_halt();
+    fun asm_reboot();
+}
 
 fun mmio_write8(addr: ptr<u8>, value: u8) {
     addr[0] = value;
-
     asm {
         clobber("memory")
     }
 }
 
-fun k_clear_screen() {
-    var vidmem: ptr<u8> = 0xb8000 as ptr<u8>;
-    var i: i32 = 0;
+fun vga_mem() -> ptr<u8> {
+    return 0xb8000 as ptr<u8>;
+}
 
-    while (i < 80 * 25 * 2) {
-        mmio_write8(vidmem + i, ' ' as u8);
-        i = i + 1;
+fun term_cell_offset(row: i32, col: i32) -> i32 {
+    return (row * VGA_WIDTH + col) * 2;
+}
 
-        mmio_write8(vidmem + i, WHITE_TXT);
-        i = i + 1;
+fun term_put_at(ch: u8, row: i32, col: i32) {
+    var base: ptr<u8> = vga_mem();
+    var off: i32 = term_cell_offset(row, col);
+    mmio_write8(base + off, ch);
+    mmio_write8(base + off + 1, VGA_ATTR);
+}
+
+fun term_clear_row(row: i32) {
+    var c: i32 = 0;
+    while (c < VGA_WIDTH) {
+        term_put_at(' ' as u8, row, c);
+        c += 1;
     }
 }
 
-fun k_printf(message: ptr<u8>, line: i32) -> i32 {
-    var current_line: i32 = line;
-    var msg: ptr<u8> = message;
-    var vidmem: ptr<u8> = 0xb8000 as ptr<u8>;
-    var i: i32 = current_line * 80 * 2;
+fun term_scroll_if_needed() {
+    if (CUR_ROW < VGA_HEIGHT) {
+        return;
+    }
 
-    while (msg[0] != 0) {
+    var base: ptr<u8> = vga_mem();
+    var r: i32 = 1;
 
-        if (msg[0] == '\n' as u8) {
-            current_line = current_line + 1;
-            i = current_line * 80 * 2;
-            msg = msg + 1;
-        } else {
-            mmio_write8(vidmem + i, msg[0]);
-            msg = msg + 1;
-            i = i + 1;
+    while (r < VGA_HEIGHT) {
+        var c: i32 = 0;
+        while (c < VGA_WIDTH) {
+            var src_off: i32 = term_cell_offset(r, c);
+            var dst_off: i32 = term_cell_offset(r - 1, c);
+            var src_ptr: ptr<u8> = base + src_off;
+            var dst_ptr: ptr<u8> = base + dst_off;
+            var src_attr_ptr: ptr<u8> = src_ptr + 1;
 
-            mmio_write8(vidmem + i, WHITE_TXT);
-            i = i + 1;
+            mmio_write8(dst_ptr, src_ptr[0]);
+            mmio_write8(dst_ptr + 1, src_attr_ptr[0]);
+            c += 1;
+        }
+        r += 1;
+    }
+
+    term_clear_row(VGA_HEIGHT - 1);
+    CUR_ROW = VGA_HEIGHT - 1;
+}
+
+fun term_newline() {
+    CUR_COL = 0;
+    CUR_ROW += 1;
+    term_scroll_if_needed();
+}
+
+fun term_backspace() {
+    if (CUR_COL > 0) {
+        CUR_COL -= 1;
+        term_put_at(' ' as u8, CUR_ROW, CUR_COL);
+    }
+}
+
+fun term_putc(ch: u8) {
+    if (ch == 10) {
+        term_newline();
+        return;
+    }
+
+    if (ch == 13) {
+        CUR_COL = 0;
+        return;
+    }
+
+    if (ch == 8) {
+        term_backspace();
+        return;
+    }
+
+    term_put_at(ch, CUR_ROW, CUR_COL);
+    CUR_COL += 1;
+
+    if (CUR_COL >= VGA_WIDTH) {
+        term_newline();
+    }
+}
+
+fun term_write(s: str) {
+    var i: i32 = 0;
+    while (s[i] != 0) {
+        term_putc(s[i]);
+        i += 1;
+    }
+}
+
+fun term_write_buf(buf: ptr<u8>, n: i32) {
+    var i: i32 = 0;
+    while (i < n) {
+        term_putc(buf[i]);
+        i += 1;
+    }
+}
+
+fun term_clear() {
+    var r: i32 = 0;
+    while (r < VGA_HEIGHT) {
+        term_clear_row(r);
+        r += 1;
+    }
+
+    CUR_ROW = 0;
+    CUR_COL = 0;
+}
+
+fun cstr_len(s: str) -> i32 {
+    var n: i32 = 0;
+    while (s[n] != 0) {
+        n += 1;
+    }
+    return n;
+}
+
+fun term_write_i64(value: i64) {
+    if (value == 0) {
+        term_putc('0' as u8);
+        return;
+    }
+
+    var v: i64 = value;
+    if (v < 0) {
+        term_putc('-' as u8);
+        v = -v;
+    }
+
+    var tmp: array<u8, 32>;
+    var len: i32 = 0;
+
+    while (v > 0) {
+        var d: i64 = v % 10;
+        tmp[len] = (d as u8) + ('0' as u8);
+        len += 1;
+        v = v / 10;
+    }
+
+    while (len > 0) {
+        len -= 1;
+        term_putc(tmp[len]);
+    }
+}
+
+fun input_clear() {
+    INPUT_LEN = 0;
+    INPUT_BUF[0] = 0;
+}
+
+fun input_push(ch: u8) {
+    if (INPUT_LEN >= 127) {
+        return;
+    }
+
+    INPUT_BUF[INPUT_LEN] = ch;
+    INPUT_LEN += 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+}
+
+fun input_pop() -> bool {
+    if (INPUT_LEN <= 0) {
+        return false;
+    }
+
+    INPUT_LEN -= 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+    return true;
+}
+
+fun input_eq(cmd: str) -> bool {
+    var n: i32 = cstr_len(cmd);
+    if (n != INPUT_LEN) {
+        return false;
+    }
+
+    var i: i32 = 0;
+    while (i < n) {
+        if (INPUT_BUF[i] != cmd[i]) {
+            return false;
+        }
+        i += 1;
+    }
+
+    return true;
+}
+
+fun show_prompt() {
+    term_write("waveos> ");
+}
+
+fun run_command() {
+    if (INPUT_LEN == 0) {
+        return;
+    }
+
+    if (input_eq("help")) {
+        term_write("commands: help clear ticks about reboot\n");
+        return;
+    }
+
+    if (input_eq("clear")) {
+        term_clear();
+        return;
+    }
+
+    if (input_eq("ticks")) {
+        term_write("ticks: ");
+        term_write_i64(TIMER_TICKS);
+        term_putc(10);
+        return;
+    }
+
+    if (input_eq("about")) {
+        term_write("WaveOS example kernel (Wave + ASM)\n");
+        return;
+    }
+
+    if (input_eq("reboot")) {
+        term_write("rebooting...\n");
+        asm_disable_interrupts();
+        asm_reboot();
+        while (true) {
+            asm_halt();
         }
     }
 
-    return 1;
+    term_write("unknown command: ");
+    term_write_buf(&INPUT_BUF[0], INPUT_LEN);
+    term_putc(10);
+}
+
+fun scancode_to_ascii(sc: u8) -> u8 {
+    if (sc == 2) { return '1' as u8; }
+    if (sc == 3) { return '2' as u8; }
+    if (sc == 4) { return '3' as u8; }
+    if (sc == 5) { return '4' as u8; }
+    if (sc == 6) { return '5' as u8; }
+    if (sc == 7) { return '6' as u8; }
+    if (sc == 8) { return '7' as u8; }
+    if (sc == 9) { return '8' as u8; }
+    if (sc == 10) { return '9' as u8; }
+    if (sc == 11) { return '0' as u8; }
+
+    if (sc == 12) { return '-' as u8; }
+    if (sc == 13) { return '=' as u8; }
+    if (sc == 14) { return 8; }
+    if (sc == 15) { return 9; }
+    if (sc == 28) { return 13; }
+    if (sc == 57) { return ' ' as u8; }
+
+    if (sc == 16) { return 'q' as u8; }
+    if (sc == 17) { return 'w' as u8; }
+    if (sc == 18) { return 'e' as u8; }
+    if (sc == 19) { return 'r' as u8; }
+    if (sc == 20) { return 't' as u8; }
+    if (sc == 21) { return 'y' as u8; }
+    if (sc == 22) { return 'u' as u8; }
+    if (sc == 23) { return 'i' as u8; }
+    if (sc == 24) { return 'o' as u8; }
+    if (sc == 25) { return 'p' as u8; }
+    if (sc == 26) { return '[' as u8; }
+    if (sc == 27) { return ']' as u8; }
+
+    if (sc == 30) { return 'a' as u8; }
+    if (sc == 31) { return 's' as u8; }
+    if (sc == 32) { return 'd' as u8; }
+    if (sc == 33) { return 'f' as u8; }
+    if (sc == 34) { return 'g' as u8; }
+    if (sc == 35) { return 'h' as u8; }
+    if (sc == 36) { return 'j' as u8; }
+    if (sc == 37) { return 'k' as u8; }
+    if (sc == 38) { return 'l' as u8; }
+    if (sc == 39) { return ';' as u8; }
+    if (sc == 40) { return '\'' as u8; }
+    if (sc == 43) { return '\\' as u8; }
+
+    if (sc == 44) { return 'z' as u8; }
+    if (sc == 45) { return 'x' as u8; }
+    if (sc == 46) { return 'c' as u8; }
+    if (sc == 47) { return 'v' as u8; }
+    if (sc == 48) { return 'b' as u8; }
+    if (sc == 49) { return 'n' as u8; }
+    if (sc == 50) { return 'm' as u8; }
+    if (sc == 51) { return ',' as u8; }
+    if (sc == 52) { return '.' as u8; }
+    if (sc == 53) { return '/' as u8; }
+
+    return 0;
+}
+
+fun k_on_timer_tick() {
+    TIMER_TICKS += 1;
+}
+
+fun k_on_keyboard_scancode(scancode: i32) {
+    if ((scancode & 0x80) != 0) {
+        return;
+    }
+
+    var c: u8 = scancode_to_ascii(scancode as u8);
+    if (c == 0) {
+        return;
+    }
+
+    if (c == 9) {
+        return;
+    }
+
+    if (c == 8) {
+        if (input_pop()) {
+            term_backspace();
+        }
+        return;
+    }
+
+    if (c == 13) {
+        term_newline();
+        run_command();
+        input_clear();
+        show_prompt();
+        return;
+    }
+
+    input_push(c);
+    term_putc(c);
 }
 
 fun k_main() {
-    k_clear_screen();
-    k_printf("Hello, world! Welcome to my kernel.", 0);
+    asm_disable_interrupts();
 
-    while (true) { }
+    term_clear();
+    input_clear();
+
+    term_write("WaveOS Example Kernel\n");
+    term_write("Booted in long mode.\n");
+    term_write("Type 'help' for commands.\n\n");
+    show_prompt();
+
+    asm_enable_interrupts();
+
+    while (true) {
+        asm_halt();
+    }
 }
