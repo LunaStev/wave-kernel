@@ -4,6 +4,7 @@ extern(c) {
     fun asm_halt();
     fun asm_reboot();
     fun asm_out8(port: i32, value: u8);
+    fun asm_in8(port: i32) -> u8;
 }
 
 fun mmio_write8(addr: ptr<u8>, value: u8) {

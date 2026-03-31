@@ -1,5 +1,6 @@
 fun scancode_to_ascii(sc: u8) -> u8 {
     match (sc) {
+        1 => { return 27; }
         2 => { return '1' as u8; }
         3 => { return '2' as u8; }
         4 => { return '3' as u8; }
@@ -60,35 +61,107 @@ fun scancode_to_ascii(sc: u8) -> u8 {
     return 0;
 }
 
+fun kb_map_shifted_symbol(ch: u8) -> u8 {
+    if (ch == 49) {
+        return 33;
+    }
+    if (ch == 50) {
+        return 64;
+    }
+    if (ch == 51) {
+        return 35;
+    }
+    if (ch == 52) {
+        return 36;
+    }
+    if (ch == 53) {
+        return 37;
+    }
+    if (ch == 54) {
+        return 94;
+    }
+    if (ch == 55) {
+        return 38;
+    }
+    if (ch == 56) {
+        return 42;
+    }
+    if (ch == 57) {
+        return 40;
+    }
+    if (ch == 48) {
+        return 41;
+    }
+    if (ch == 45) {
+        return 95;
+    }
+    if (ch == 61) {
+        return 43;
+    }
+    if (ch == 91) {
+        return 123;
+    }
+    if (ch == 93) {
+        return 125;
+    }
+    if (ch == 59) {
+        return 58;
+    }
+    if (ch == 44) {
+        return 60;
+    }
+    if (ch == 46) {
+        return 62;
+    }
+    if (ch == 47) {
+        return 63;
+    }
+    if (ch == 92) {
+        return 124;
+    }
+    if (ch == 39) {
+        return 34;
+    }
+    return ch;
+}
+
 fun k_on_keyboard_scancode(scancode: i32) {
-    if ((scancode & 0x80) != 0) {
+    var sc: u8 = scancode as u8;
+
+    if (sc == 42 || sc == 54) {
+        KB_SHIFT = 1;
         return;
     }
 
-    var c: u8 = scancode_to_ascii(scancode as u8);
-    if (c == 0) {
+    if (sc == 170 || sc == 182) {
+        KB_SHIFT = 0;
         return;
     }
 
-    if (c == 9) {
-        return;
-    }
-
-    if (c == 8) {
-        if (input_pop()) {
-            term_backspace();
+    if (sc == 58) {
+        if (KB_CAPS == 0) {
+            KB_CAPS = 1;
+        } else {
+            KB_CAPS = 0;
         }
         return;
     }
 
-    if (c == 13) {
-        term_newline();
-        run_command();
-        input_clear();
-        show_prompt();
+    if ((sc & 0x80) != 0) {
         return;
     }
 
-    input_push(c);
-    term_putc(c);
+    var c: u8 = scancode_to_ascii(sc);
+    if (c == 0) {
+        return;
+    }
+
+    if (c >= ('a' as u8) && c <= ('z' as u8) && KB_SHIFT != KB_CAPS) {
+        c = (c - 32) as u8;
+    }
+    if (KB_SHIFT != 0 && c != (' ' as u8) && c != 9 && c != 10 && c != 13) {
+        c = kb_map_shifted_symbol(c);
+    }
+
+    console_handle_char(c);
 }

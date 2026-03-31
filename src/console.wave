@@ -1,0 +1,34 @@
+fun console_handle_char(c: u8) {
+    if (UI_MODE == MODE_EDITOR) {
+        editor_handle_key(c);
+        return;
+    }
+
+    if (c == 9) {
+        return;
+    }
+
+    if (c == 8) {
+        if (input_pop()) {
+            term_backspace();
+        }
+        return;
+    }
+
+    if (c == 13 || c == 10) {
+        term_newline();
+        var keep_prompt: i32 = run_command();
+        input_clear();
+        if (keep_prompt != 0 && UI_MODE == MODE_SHELL) {
+            show_prompt();
+        }
+        return;
+    }
+
+    if (c < 32) {
+        return;
+    }
+
+    input_push(c);
+    term_putc(c);
+}

@@ -1,0 +1,103 @@
+fun editor_write_mode_tag() {
+    if (EDIT_MODE == EDIT_MODE_INSERT) {
+        term_write("[INSERT]");
+        return;
+    }
+
+    if (EDIT_MODE == EDIT_MODE_COMMAND) {
+        term_write("[COMMAND]");
+        return;
+    }
+
+    term_write("[NORMAL]");
+}
+
+fun editor_write_status() {
+    if (EDIT_MODE == EDIT_MODE_COMMAND) {
+        term_putc(':' as u8);
+        term_write_buf(&EDIT_CMD_BUF[0], EDIT_CMD_LEN);
+        return;
+    }
+
+    if (EDIT_STATUS == EDIT_STATUS_SAVED) {
+        term_write("saved (in-memory)");
+        return;
+    }
+
+    if (EDIT_STATUS == EDIT_STATUS_BAD_CMD) {
+        term_write("unknown command (:help)");
+        return;
+    }
+
+    term_write("i:insert  h/j/k/l:move  x:del  o:newline  :cmd  esc:normal");
+}
+
+fun editor_render() {
+    term_clear();
+    term_write("WaveVim ");
+    editor_write_mode_tag();
+    term_write("\n");
+    term_write("------------------------------------------------------------\n");
+
+    var cursor_row: i32 = CUR_ROW;
+    var cursor_col: i32 = CUR_COL;
+    var i: i32 = 0;
+
+    while (i <= EDIT_LEN) {
+        if (i == EDIT_CURSOR) {
+            cursor_row = CUR_ROW;
+            cursor_col = CUR_COL;
+        }
+
+        if (i == EDIT_LEN) {
+            break;
+        }
+
+        if (CUR_ROW >= VGA_HEIGHT - 1) {
+            break;
+        }
+
+        var ch: u8 = EDIT_BUF[i];
+        if (ch == 10) {
+            if (CUR_ROW >= VGA_HEIGHT - 2) {
+                break;
+            }
+            term_putc(10);
+        } else {
+            term_putc(ch);
+        }
+
+        i += 1;
+    }
+
+    var c: i32 = 0;
+    while (c < VGA_WIDTH) {
+        term_put_at(' ' as u8, VGA_HEIGHT - 1, c);
+        c += 1;
+    }
+
+    CUR_ROW = VGA_HEIGHT - 1;
+    CUR_COL = 0;
+    editor_write_status();
+
+    if (cursor_row >= VGA_HEIGHT - 1) {
+        cursor_row = VGA_HEIGHT - 2;
+        cursor_col = 0;
+    }
+
+    CUR_ROW = cursor_row;
+    CUR_COL = cursor_col;
+    cursor_sync_hw();
+}
+
+fun editor_view_in_shell() {
+    if (EDIT_LEN == 0) {
+        term_write("(editor buffer is empty)\n");
+        return;
+    }
+
+    term_write("---- editor buffer ----\n");
+    term_write_buf(&EDIT_BUF[0], EDIT_LEN);
+    term_putc(10);
+    term_write("-----------------------\n");
+}

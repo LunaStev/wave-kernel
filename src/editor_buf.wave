@@ -1,0 +1,59 @@
+fun editor_reset() {
+    EDIT_LEN = 0;
+    EDIT_CURSOR = 0;
+    EDIT_MODE = EDIT_MODE_NORMAL;
+    EDIT_STATUS = EDIT_STATUS_HELP;
+    EDIT_CMD_LEN = 0;
+}
+
+fun editor_insert_at_cursor(ch: u8) {
+    if (EDIT_LEN >= 4095) {
+        return;
+    }
+
+    var i: i32 = EDIT_LEN;
+    while (i > EDIT_CURSOR) {
+        var prev: i32 = i - 1;
+        EDIT_BUF[i] = EDIT_BUF[prev];
+        i -= 1;
+    }
+
+    EDIT_BUF[EDIT_CURSOR] = ch;
+    EDIT_LEN += 1;
+    EDIT_CURSOR += 1;
+}
+
+fun editor_delete_before_cursor() {
+    if (EDIT_CURSOR <= 0 || EDIT_LEN <= 0) {
+        return;
+    }
+
+    var at: i32 = EDIT_CURSOR - 1;
+    var i: i32 = at;
+    while (i < EDIT_LEN - 1) {
+        var next: i32 = i + 1;
+        EDIT_BUF[i] = EDIT_BUF[next];
+        i += 1;
+    }
+
+    EDIT_LEN -= 1;
+    EDIT_CURSOR -= 1;
+}
+
+fun editor_delete_at_cursor() {
+    if (EDIT_CURSOR < 0 || EDIT_CURSOR >= EDIT_LEN) {
+        return;
+    }
+
+    var i: i32 = EDIT_CURSOR;
+    while (i < EDIT_LEN - 1) {
+        var next: i32 = i + 1;
+        EDIT_BUF[i] = EDIT_BUF[next];
+        i += 1;
+    }
+
+    EDIT_LEN -= 1;
+    if (EDIT_CURSOR > EDIT_LEN) {
+        EDIT_CURSOR = EDIT_LEN;
+    }
+}

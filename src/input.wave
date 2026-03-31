@@ -1,0 +1,158 @@
+fun cstr_len(s: str) -> i32 {
+    var n: i32 = 0;
+    while (s[n] != 0) {
+        n += 1;
+    }
+    return n;
+}
+
+fun ascii_to_lower(ch: u8) -> u8 {
+    if (ch >= ('A' as u8) && ch <= ('Z' as u8)) {
+        return (ch + 32) as u8;
+    }
+    return ch;
+}
+
+fun input_is_space(ch: u8) -> bool {
+    if (ch == (' ' as u8) || ch == 9) {
+        return true;
+    }
+    return false;
+}
+
+fun input_clear() {
+    INPUT_LEN = 0;
+    INPUT_BUF[0] = 0;
+}
+
+fun input_push(ch: u8) {
+    if (INPUT_LEN >= 127) {
+        return;
+    }
+
+    INPUT_BUF[INPUT_LEN] = ch;
+    INPUT_LEN += 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+}
+
+fun input_pop() -> bool {
+    if (INPUT_LEN <= 0) {
+        return false;
+    }
+
+    INPUT_LEN -= 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+    return true;
+}
+
+fun input_eq(cmd: str) -> bool {
+    var n: i32 = cstr_len(cmd);
+    if (n != INPUT_LEN) {
+        return false;
+    }
+
+    var i: i32 = 0;
+    while (i < n) {
+        if (INPUT_BUF[i] != cmd[i]) {
+            return false;
+        }
+        i += 1;
+    }
+
+    return true;
+}
+
+fun input_skip_spaces(start: i32) -> i32 {
+    var i: i32 = start;
+    while (i < INPUT_LEN && input_is_space(INPUT_BUF[i])) {
+        i += 1;
+    }
+    return i;
+}
+
+fun input_token_end(start: i32) -> i32 {
+    var i: i32 = start;
+    while (i < INPUT_LEN && !input_is_space(INPUT_BUF[i])) {
+        i += 1;
+    }
+    return i;
+}
+
+fun input_token_eq_ci(start: i32, end: i32, text: str) -> bool {
+    var n: i32 = cstr_len(text);
+    if ((end - start) != n) {
+        return false;
+    }
+
+    var i: i32 = 0;
+    var idx: i32 = start;
+    while (i < n) {
+        if (ascii_to_lower(INPUT_BUF[idx]) != ascii_to_lower(text[i])) {
+            return false;
+        }
+        idx += 1;
+        i += 1;
+    }
+    return true;
+}
+
+fun input_cmd_eq_ci(cmd: str) -> bool {
+    var start: i32 = input_skip_spaces(0);
+    if (start >= INPUT_LEN) {
+        return false;
+    }
+
+    var end: i32 = input_token_end(start);
+    return input_token_eq_ci(start, end, cmd);
+}
+
+fun input_arg_count() -> i32 {
+    var i: i32 = input_skip_spaces(0);
+    if (i >= INPUT_LEN) {
+        return 0;
+    }
+
+    i = input_token_end(i);
+
+    var count: i32 = 0;
+    while (true) {
+        i = input_skip_spaces(i);
+        if (i >= INPUT_LEN) {
+            break;
+        }
+        i = input_token_end(i);
+        count += 1;
+    }
+    return count;
+}
+
+fun input_cmd_only_ci(cmd: str) -> bool {
+    if (!input_cmd_eq_ci(cmd)) {
+        return false;
+    }
+    return input_arg_count() == 0;
+}
+
+fun input_any_arg_eq_ci(text: str) -> bool {
+    var i: i32 = input_skip_spaces(0);
+    if (i >= INPUT_LEN) {
+        return false;
+    }
+
+    i = input_token_end(i);
+
+    while (true) {
+        i = input_skip_spaces(i);
+        if (i >= INPUT_LEN) {
+            return false;
+        }
+
+        var end: i32 = input_token_end(i);
+        if (input_token_eq_ci(i, end, text)) {
+            return true;
+        }
+        i = end;
+    }
+
+    return false;
+}

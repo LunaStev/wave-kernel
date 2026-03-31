@@ -1,0 +1,88 @@
+fun i32_min(a: i32, b: i32) -> i32 {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
+fun editor_line_start(idx: i32) -> i32 {
+    var i: i32 = idx;
+    if (i > EDIT_LEN) {
+        i = EDIT_LEN;
+    }
+    while (i > 0) {
+        var prev: i32 = i - 1;
+        if (EDIT_BUF[prev] == 10) {
+            break;
+        }
+        i -= 1;
+    }
+    return i;
+}
+
+fun editor_line_end(idx: i32) -> i32 {
+    var i: i32 = idx;
+    if (i < 0) {
+        i = 0;
+    }
+    while (i < EDIT_LEN) {
+        if (EDIT_BUF[i] == 10) {
+            break;
+        }
+        i += 1;
+    }
+    return i;
+}
+
+fun editor_move_left() {
+    if (EDIT_CURSOR > 0) {
+        EDIT_CURSOR -= 1;
+    }
+}
+
+fun editor_move_right() {
+    if (EDIT_CURSOR < EDIT_LEN) {
+        EDIT_CURSOR += 1;
+    }
+}
+
+fun editor_move_line_start() {
+    EDIT_CURSOR = editor_line_start(EDIT_CURSOR);
+}
+
+fun editor_move_line_end() {
+    EDIT_CURSOR = editor_line_end(EDIT_CURSOR);
+}
+
+fun editor_move_up() {
+    var cur_start: i32 = editor_line_start(EDIT_CURSOR);
+    if (cur_start == 0) {
+        return;
+    }
+
+    var col: i32 = EDIT_CURSOR - cur_start;
+    var prev_end: i32 = cur_start - 1;
+    var prev_start: i32 = editor_line_start(prev_end);
+    var prev_len: i32 = prev_end - prev_start;
+    EDIT_CURSOR = prev_start + i32_min(col, prev_len);
+}
+
+fun editor_move_down() {
+    var cur_start: i32 = editor_line_start(EDIT_CURSOR);
+    var cur_end: i32 = editor_line_end(EDIT_CURSOR);
+    if (cur_end >= EDIT_LEN) {
+        return;
+    }
+
+    var col: i32 = EDIT_CURSOR - cur_start;
+    var next_start: i32 = cur_end + 1;
+    var next_end: i32 = editor_line_end(next_start);
+    var next_len: i32 = next_end - next_start;
+    EDIT_CURSOR = next_start + i32_min(col, next_len);
+}
+
+fun editor_open_newline_below() {
+    var end: i32 = editor_line_end(EDIT_CURSOR);
+    EDIT_CURSOR = end;
+    editor_insert_at_cursor(10);
+}

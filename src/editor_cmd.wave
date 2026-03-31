@@ -1,0 +1,68 @@
+fun editor_cmd_reset() {
+    EDIT_CMD_LEN = 0;
+}
+
+fun editor_cmd_push(ch: u8) {
+    if (EDIT_CMD_LEN >= 63) {
+        return;
+    }
+    EDIT_CMD_BUF[EDIT_CMD_LEN] = ch;
+    EDIT_CMD_LEN += 1;
+}
+
+fun editor_cmd_pop() {
+    if (EDIT_CMD_LEN <= 0) {
+        return;
+    }
+    EDIT_CMD_LEN -= 1;
+}
+
+fun editor_cmd_eq(s: str) -> bool {
+    var n: i32 = cstr_len(s);
+    if (n != EDIT_CMD_LEN) {
+        return false;
+    }
+
+    var i: i32 = 0;
+    while (i < n) {
+        if (ascii_to_lower(EDIT_CMD_BUF[i]) != ascii_to_lower(s[i])) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fun editor_execute_command() {
+    if (editor_cmd_eq("q")) {
+        editor_close();
+        return;
+    }
+
+    if (editor_cmd_eq("w")) {
+        EDIT_STATUS = EDIT_STATUS_SAVED;
+        EDIT_MODE = EDIT_MODE_NORMAL;
+        editor_cmd_reset();
+        editor_render();
+        return;
+    }
+
+    if (editor_cmd_eq("wq")) {
+        EDIT_STATUS = EDIT_STATUS_SAVED;
+        editor_close();
+        return;
+    }
+
+    if (editor_cmd_eq("help")) {
+        EDIT_STATUS = EDIT_STATUS_HELP;
+        EDIT_MODE = EDIT_MODE_NORMAL;
+        editor_cmd_reset();
+        editor_render();
+        return;
+    }
+
+    EDIT_STATUS = EDIT_STATUS_BAD_CMD;
+    EDIT_MODE = EDIT_MODE_NORMAL;
+    editor_cmd_reset();
+    editor_render();
+}

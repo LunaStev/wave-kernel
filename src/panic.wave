@@ -1,0 +1,55 @@
+fun panic(msg: str) {
+    asm_disable_interrupts();
+
+    if (PANICKED != 0) {
+        while (true) {
+            asm_halt();
+        }
+    }
+
+    PANICKED = 1;
+
+    term_write("\nKERNEL PANIC: ");
+    term_write(msg);
+    term_putc(10);
+
+    serial_write("KERNEL PANIC: ");
+    serial_write(msg);
+    serial_write("\n");
+
+    while (true) {
+        asm_halt();
+    }
+}
+
+fun panic_exception(vector: i32, error_code: i64) {
+    asm_disable_interrupts();
+
+    if (PANICKED != 0) {
+        while (true) {
+            asm_halt();
+        }
+    }
+
+    PANICKED = 1;
+
+    term_write("\nEXCEPTION PANIC\n");
+    term_write("vector: ");
+    term_write_i64(vector as i64);
+    term_putc(10);
+    term_write("error: ");
+    term_write_i64(error_code);
+    term_putc(10);
+
+    serial_write("EXCEPTION PANIC\n");
+    serial_write("vector: ");
+    serial_write_i64(vector as i64);
+    serial_write("\n");
+    serial_write("error: ");
+    serial_write_i64(error_code);
+    serial_write("\n");
+
+    while (true) {
+        asm_halt();
+    }
+}

@@ -1,0 +1,149 @@
+fun show_prompt() {
+    term_write("waveos> ");
+}
+
+fun run_command() -> i32 {
+    if (INPUT_LEN == 0) {
+        return 1;
+    }
+
+    if (input_cmd_only_ci("help")) {
+        term_write("commands: help clear ticks about reboot serial panic\n");
+        term_write("          ui editor edclear view wcheck wavec\n");
+        term_write("          unixinit ps ls catmotd fork fddemo\n");
+        term_write("editor: vim-like (normal/insert/command), :w/:q/:wq\n");
+        term_write("wavec: wavec -V|--version, wavec -h|--help\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("clear")) {
+        term_clear();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("ticks")) {
+        term_write("ticks: ");
+        term_write_i64(TIMER_TICKS);
+        term_putc(10);
+        return 1;
+    }
+
+    if (input_cmd_only_ci("about")) {
+        term_write("WaveOS kernel (Wave + ASM, modular UI/editor)\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("ui")) {
+        ui_draw_home();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("editor")) {
+        editor_open();
+        return 0;
+    }
+
+    if (input_cmd_only_ci("edclear")) {
+        editor_reset();
+        term_write("editor buffer cleared\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("view")) {
+        editor_view_in_shell();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("wcheck")) {
+        wave_check_editor_buffer();
+        return 1;
+    }
+
+    if (input_cmd_eq_ci("wavec")) {
+        if (input_any_arg_eq_ci("-V") || input_any_arg_eq_ci("-v") || input_any_arg_eq_ci("--version")) {
+            term_write("wavec compiler bundled in image: /boot/tools/wavec\n");
+            term_write("bundled binary source build: /mnt/hdd/Wave (cargo build)\n");
+            term_write("kernel build compiler: host system wavec (PATH)\n");
+            return 1;
+        }
+
+        if (input_any_arg_eq_ci("-h") || input_any_arg_eq_ci("-H") || input_any_arg_eq_ci("--help")) {
+            term_write("usage: wavec [options]\n");
+            term_write("  -V, -v, --version : print version\n");
+            term_write("  -h, -H, --help    : show help\n");
+            term_write("note: /boot/tools/wavec is built from /mnt/hdd/Wave\n");
+            term_write("      in-kernel syntax check command is: wcheck\n");
+            return 1;
+        }
+
+        if (input_arg_count() > 0) {
+            term_write("wavec: unsupported option\n");
+            term_write("try: wavec --help\n");
+            return 1;
+        }
+
+        term_write("wavec binary is embedded in image at /boot/tools/wavec\n");
+        term_write("embedded wavec is built from /mnt/hdd/Wave\n");
+        term_write("kernel build uses host system wavec from PATH\n");
+        term_write("for in-kernel check use: wcheck\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("unixinit")) {
+        unix_init();
+        unix_bootstrap_fs();
+        term_write("unix profile reinitialized\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("ps")) {
+        unix_cmd_ps();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("ls")) {
+        unix_cmd_ls();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("catmotd")) {
+        unix_cmd_cat_motd();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("fork")) {
+        unix_cmd_fork_demo();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("fddemo")) {
+        unix_cmd_fd_demo();
+        return 1;
+    }
+
+    if (input_cmd_only_ci("serial")) {
+        term_write("serial: wrote test line to COM1\n");
+        serial_write("serial test: hello from WaveOS shell\n");
+        return 1;
+    }
+
+    if (input_cmd_only_ci("panic")) {
+        panic("manual panic from shell");
+        return 0;
+    }
+
+    if (input_cmd_only_ci("reboot")) {
+        term_write("rebooting...\n");
+        asm_disable_interrupts();
+        asm_reboot();
+        while (true) {
+            asm_halt();
+        }
+        return 0;
+    }
+
+    term_write("unknown command: ");
+    term_write_buf(&INPUT_BUF[0], INPUT_LEN);
+    term_putc(10);
+    return 1;
+}

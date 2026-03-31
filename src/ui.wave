@@ -1,0 +1,20 @@
+fun ui_draw_home() {
+    term_clear();
+    term_write("WaveOS User Interface\n");
+    term_write("=====================\n");
+    term_write("Goal: Wave kernel usability demo\n\n");
+    term_write("Shell Commands\n");
+    term_write("- help, clear, ticks, about\n");
+    term_write("- editor, edclear, view\n");
+    term_write("- wcheck, wavec, serial, panic, reboot\n");
+    term_write("- unixinit, ps, ls, catmotd, fork, fddemo\n");
+    term_write("- wavec flags: -V/--version, -h/--help\n");
+    term_write("- image includes: /boot/tools/wavec\n");
+    term_write("- bundled wavec build source: /mnt/hdd/Wave\n");
+    term_write("- in-kernel syntax check command: wcheck\n");
+    term_write("- shell/editor commands are case-insensitive\n");
+    term_write("- ui (redraw this screen)\n\n");
+    term_write("WaveVim Quick Keys\n");
+    term_write("- NORMAL: h j k l, i, a, x, o, : (or ;)\n");
+    term_write("- COMMAND: :w, :q, :wq, :help\n\n");
+}

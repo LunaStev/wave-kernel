@@ -1,0 +1,59 @@
+fun wave_check_editor_buffer() {
+    var braces: i32 = 0;
+    var parens: i32 = 0;
+    var brackets: i32 = 0;
+    var i: i32 = 0;
+
+    while (i < EDIT_LEN) {
+        var ch: u8 = EDIT_BUF[i];
+
+        if (ch == ('{' as u8)) {
+            braces += 1;
+        } else if (ch == ('}' as u8)) {
+            if (braces <= 0) {
+                term_write("wcheck: unexpected '}' at index ");
+                term_write_i64(i as i64);
+                term_putc(10);
+                return;
+            }
+            braces -= 1;
+        } else if (ch == ('(' as u8)) {
+            parens += 1;
+        } else if (ch == (')' as u8)) {
+            if (parens <= 0) {
+                term_write("wcheck: unexpected ')' at index ");
+                term_write_i64(i as i64);
+                term_putc(10);
+                return;
+            }
+            parens -= 1;
+        } else if (ch == ('[' as u8)) {
+            brackets += 1;
+        } else if (ch == (']' as u8)) {
+            if (brackets <= 0) {
+                term_write("wcheck: unexpected ']' at index ");
+                term_write_i64(i as i64);
+                term_putc(10);
+                return;
+            }
+            brackets -= 1;
+        }
+
+        i += 1;
+    }
+
+    if (braces != 0 || parens != 0 || brackets != 0) {
+        term_write("wcheck: unclosed delimiter(s): ");
+        term_write("braces=");
+        term_write_i64(braces as i64);
+        term_write(" parens=");
+        term_write_i64(parens as i64);
+        term_write(" brackets=");
+        term_write_i64(brackets as i64);
+        term_putc(10);
+        return;
+    }
+
+    term_write("wcheck: ok (delimiter balance)\n");
+    serial_write("wcheck: ok\n");
+}

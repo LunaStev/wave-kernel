@@ -1,0 +1,85 @@
+const UNIX_MAX_CHILDREN: i32 = 14;
+
+static UNIX_READY: i32 = 0;
+static UNIX_CHILDREN: i32 = 0;
+
+fun unix_require_ready() -> bool {
+    if (UNIX_READY == 0) {
+        term_write("unix: not initialized (run unixinit)\n");
+        return false;
+    }
+    return true;
+}
+
+fun unix_init() {
+    UNIX_READY = 1;
+    UNIX_CHILDREN = 0;
+    serial_write("unix: init complete\n");
+}
+
+fun unix_bootstrap_fs() {
+    if (UNIX_READY == 0) {
+        return;
+    }
+}
+
+fun unix_cmd_ps() {
+    if (!unix_require_ready()) {
+        return;
+    }
+
+    term_write("PID  PPID STATE NAME\n");
+    term_write("0    0    RUN   swapper\n");
+    term_write("1    0    RUN   init\n");
+
+    var i: i32 = 0;
+    while (i < UNIX_CHILDREN) {
+        term_write_i64((2 + i) as i64);
+        term_write("    1    RUN   sh\n");
+        i += 1;
+    }
+}
+
+fun unix_cmd_ls() {
+    if (!unix_require_ready()) {
+        return;
+    }
+
+    term_write("inode  name      size\n");
+    term_write("1      motd      29\n");
+    term_write("2      readme    35\n");
+}
+
+fun unix_cmd_cat_motd() {
+    if (!unix_require_ready()) {
+        return;
+    }
+
+    term_write("Welcome to Wave UNIX profile\n");
+}
+
+fun unix_cmd_fork_demo() {
+    if (!unix_require_ready()) {
+        return;
+    }
+
+    if (UNIX_CHILDREN >= UNIX_MAX_CHILDREN) {
+        term_write("fork: no free proc slot\n");
+        return;
+    }
+
+    var pid: i32 = 2 + UNIX_CHILDREN;
+    UNIX_CHILDREN += 1;
+
+    term_write("fork: child pid=");
+    term_write_i64(pid as i64);
+    term_putc(10);
+}
+
+fun unix_cmd_fd_demo() {
+    if (!unix_require_ready()) {
+        return;
+    }
+
+    term_write("fd=3 read -> Welcome to Wave UNIX profile\n");
+}

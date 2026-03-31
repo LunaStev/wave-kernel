@@ -1,0 +1,35 @@
+const VGA_WIDTH: i32 = 80;
+const VGA_HEIGHT: i32 = 25;
+const VGA_ATTR: u8 = 0x0F;
+const MODE_SHELL: i32 = 0;
+const MODE_EDITOR: i32 = 1;
+const EDIT_MODE_NORMAL: i32 = 0;
+const EDIT_MODE_INSERT: i32 = 1;
+const EDIT_MODE_COMMAND: i32 = 2;
+const EDIT_STATUS_NONE: i32 = 0;
+const EDIT_STATUS_HELP: i32 = 1;
+const EDIT_STATUS_SAVED: i32 = 2;
+const EDIT_STATUS_BAD_CMD: i32 = 3;
+
+static CUR_ROW: i32 = 0;
+static CUR_COL: i32 = 0;
+
+static TIMER_TICKS: i64 = 0;
+
+static INPUT_LEN: i32 = 0;
+static INPUT_BUF: array<u8, 128>;
+static UI_MODE: i32 = 0;
+static KB_SHIFT: i32 = 0;
+static KB_CAPS: i32 = 0;
+
+static PANICKED: i32 = 0;
+static SERIAL_READY: i32 = 0;
+static SERIAL_SKIP_LF: i32 = 0;
+
+static EDIT_LEN: i32 = 0;
+static EDIT_BUF: array<u8, 4096>;
+static EDIT_CURSOR: i32 = 0;
+static EDIT_MODE: i32 = 0;
+static EDIT_STATUS: i32 = 0;
+static EDIT_CMD_LEN: i32 = 0;
+static EDIT_CMD_BUF: array<u8, 64>;

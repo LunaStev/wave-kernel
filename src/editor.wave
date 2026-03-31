@@ -1,0 +1,165 @@
+fun editor_open() {
+    UI_MODE = MODE_EDITOR;
+    EDIT_MODE = EDIT_MODE_NORMAL;
+    EDIT_STATUS = EDIT_STATUS_HELP;
+    editor_cmd_reset();
+    editor_render();
+}
+
+fun editor_close() {
+    UI_MODE = MODE_SHELL;
+    EDIT_MODE = EDIT_MODE_NORMAL;
+    term_clear();
+    ui_draw_home();
+    term_write("[editor closed]\n");
+    show_prompt();
+}
+
+fun editor_handle_insert_key(c: u8) {
+    if (c == 27) {
+        EDIT_MODE = EDIT_MODE_NORMAL;
+        editor_render();
+        return;
+    }
+
+    if (c == 8) {
+        editor_delete_before_cursor();
+        editor_render();
+        return;
+    }
+
+    if (c == 13) {
+        editor_insert_at_cursor(10);
+        editor_render();
+        return;
+    }
+
+    if (c == 9) {
+        editor_insert_at_cursor(' ' as u8);
+        editor_insert_at_cursor(' ' as u8);
+        editor_insert_at_cursor(' ' as u8);
+        editor_insert_at_cursor(' ' as u8);
+        editor_render();
+        return;
+    }
+
+    if (c < 32) {
+        return;
+    }
+
+    editor_insert_at_cursor(c);
+    editor_render();
+}
+
+fun editor_handle_command_key(c: u8) {
+    if (c == 27) {
+        EDIT_MODE = EDIT_MODE_NORMAL;
+        editor_cmd_reset();
+        editor_render();
+        return;
+    }
+
+    if (c == 8) {
+        editor_cmd_pop();
+        editor_render();
+        return;
+    }
+
+    if (c == 13) {
+        editor_execute_command();
+        return;
+    }
+
+    if (c < 32) {
+        return;
+    }
+
+    editor_cmd_push(c);
+    editor_render();
+}
+
+fun editor_handle_normal_key(c: u8) {
+    if (c == 27) {
+        return;
+    }
+
+    if (c == ('i' as u8)) {
+        EDIT_MODE = EDIT_MODE_INSERT;
+        EDIT_STATUS = EDIT_STATUS_NONE;
+        editor_render();
+        return;
+    }
+
+    if (c == ('a' as u8)) {
+        editor_move_right();
+        EDIT_MODE = EDIT_MODE_INSERT;
+        EDIT_STATUS = EDIT_STATUS_NONE;
+        editor_render();
+        return;
+    }
+
+    if (c == ('h' as u8)) {
+        editor_move_left();
+        editor_render();
+        return;
+    }
+
+    if (c == ('l' as u8)) {
+        editor_move_right();
+        editor_render();
+        return;
+    }
+
+    if (c == ('j' as u8)) {
+        editor_move_down();
+        editor_render();
+        return;
+    }
+
+    if (c == ('k' as u8)) {
+        editor_move_up();
+        editor_render();
+        return;
+    }
+
+    if (c == ('0' as u8)) {
+        editor_move_line_start();
+        editor_render();
+        return;
+    }
+
+    if (c == ('x' as u8)) {
+        editor_delete_at_cursor();
+        editor_render();
+        return;
+    }
+
+    if (c == ('o' as u8)) {
+        editor_open_newline_below();
+        EDIT_MODE = EDIT_MODE_INSERT;
+        EDIT_STATUS = EDIT_STATUS_NONE;
+        editor_render();
+        return;
+    }
+
+    if (c == (':' as u8) || c == (';' as u8)) {
+        EDIT_MODE = EDIT_MODE_COMMAND;
+        editor_cmd_reset();
+        editor_render();
+        return;
+    }
+}
+
+fun editor_handle_key(c: u8) {
+    if (EDIT_MODE == EDIT_MODE_INSERT) {
+        editor_handle_insert_key(c);
+        return;
+    }
+
+    if (EDIT_MODE == EDIT_MODE_COMMAND) {
+        editor_handle_command_key(c);
+        return;
+    }
+
+    editor_handle_normal_key(c);
+}

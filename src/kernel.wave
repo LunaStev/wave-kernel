@@ -1,0 +1,47 @@
+import("state");
+import("hal");
+import("serial");
+import("term");
+import("input");
+import("panic");
+import("exception");
+import("ui");
+import("editor_buf");
+import("editor_nav");
+import("editor_cmd");
+import("editor_view");
+import("editor");
+import("compiler");
+import("unix_core");
+import("shell");
+import("console");
+import("keyboard");
+
+fun k_on_timer_tick() {
+    TIMER_TICKS += 1;
+}
+
+fun k_main() {
+    asm_disable_interrupts();
+
+    serial_init();
+    term_clear();
+    cursor_init_hw();
+    input_clear();
+    editor_reset();
+    UI_MODE = MODE_SHELL;
+    unix_init();
+    unix_bootstrap_fs();
+
+    ui_draw_home();
+    show_prompt();
+
+    serial_write("WaveOS booted (long mode)\n");
+
+    asm_enable_interrupts();
+
+    while (true) {
+        serial_poll_input();
+        asm_halt();
+    }
+}

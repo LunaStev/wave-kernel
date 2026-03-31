@@ -29,6 +29,7 @@ global _start
 extern k_main
 extern k_on_timer_tick
 extern k_on_keyboard_scancode
+extern k_on_exception
 
 _start:
     cli
@@ -142,20 +143,60 @@ asm_out8:
     out dx, al
     ret
 
+global asm_in8
+asm_in8:
+    mov dx, di
+    in al, dx
+    ret
+
 ; -----------------------------------------
 ; IDT setup
 ; -----------------------------------------
 
-setup_idt:
-    ; install IRQ0(timer) -> vector 32
-    lea rax, [isr_timer]
-    mov ecx, 32
+%macro INSTALL_GATE 2
+    lea rax, [%2]
+    mov ecx, %1
     call set_idt_gate
+%endmacro
 
-    ; install IRQ1(keyboard) -> vector 33
-    lea rax, [isr_keyboard]
-    mov ecx, 33
-    call set_idt_gate
+setup_idt:
+    ; CPU exception vectors 0..31
+    INSTALL_GATE 0, isr_exc0
+    INSTALL_GATE 1, isr_exc1
+    INSTALL_GATE 2, isr_exc2
+    INSTALL_GATE 3, isr_exc3
+    INSTALL_GATE 4, isr_exc4
+    INSTALL_GATE 5, isr_exc5
+    INSTALL_GATE 6, isr_exc6
+    INSTALL_GATE 7, isr_exc7
+    INSTALL_GATE 8, isr_exc8
+    INSTALL_GATE 9, isr_exc9
+    INSTALL_GATE 10, isr_exc10
+    INSTALL_GATE 11, isr_exc11
+    INSTALL_GATE 12, isr_exc12
+    INSTALL_GATE 13, isr_exc13
+    INSTALL_GATE 14, isr_exc14
+    INSTALL_GATE 15, isr_exc15
+    INSTALL_GATE 16, isr_exc16
+    INSTALL_GATE 17, isr_exc17
+    INSTALL_GATE 18, isr_exc18
+    INSTALL_GATE 19, isr_exc19
+    INSTALL_GATE 20, isr_exc20
+    INSTALL_GATE 21, isr_exc21
+    INSTALL_GATE 22, isr_exc22
+    INSTALL_GATE 23, isr_exc23
+    INSTALL_GATE 24, isr_exc24
+    INSTALL_GATE 25, isr_exc25
+    INSTALL_GATE 26, isr_exc26
+    INSTALL_GATE 27, isr_exc27
+    INSTALL_GATE 28, isr_exc28
+    INSTALL_GATE 29, isr_exc29
+    INSTALL_GATE 30, isr_exc30
+    INSTALL_GATE 31, isr_exc31
+
+    ; PIC remapped IRQs
+    INSTALL_GATE 32, isr_timer
+    INSTALL_GATE 33, isr_keyboard
 
     lidt [idtr]
     ret
@@ -231,7 +272,7 @@ init_pit_100hz:
     ret
 
 ; -----------------------------------------
-; IRQ handlers
+; Handlers
 ; -----------------------------------------
 
 %macro PUSH_GPRS 0
@@ -269,6 +310,60 @@ init_pit_100hz:
     pop rbx
     pop rax
 %endmacro
+
+%macro EXC_NOERR 1
+isr_exc%1:
+    PUSH_GPRS
+    mov edi, %1
+    xor esi, esi
+    call k_on_exception
+    POP_GPRS
+    iretq
+%endmacro
+
+%macro EXC_ERR 1
+isr_exc%1:
+    PUSH_GPRS
+    mov edi, %1
+    mov rsi, [rsp + 120]
+    call k_on_exception
+    POP_GPRS
+    add rsp, 8
+    iretq
+%endmacro
+
+EXC_NOERR 0
+EXC_NOERR 1
+EXC_NOERR 2
+EXC_NOERR 3
+EXC_NOERR 4
+EXC_NOERR 5
+EXC_NOERR 6
+EXC_NOERR 7
+EXC_ERR   8
+EXC_NOERR 9
+EXC_ERR   10
+EXC_ERR   11
+EXC_ERR   12
+EXC_ERR   13
+EXC_ERR   14
+EXC_NOERR 15
+EXC_NOERR 16
+EXC_ERR   17
+EXC_NOERR 18
+EXC_NOERR 19
+EXC_NOERR 20
+EXC_ERR   21
+EXC_NOERR 22
+EXC_NOERR 23
+EXC_NOERR 24
+EXC_NOERR 25
+EXC_NOERR 26
+EXC_NOERR 27
+EXC_NOERR 28
+EXC_ERR   29
+EXC_ERR   30
+EXC_NOERR 31
 
 isr_timer:
     PUSH_GPRS

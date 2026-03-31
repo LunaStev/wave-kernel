@@ -1,0 +1,122 @@
+const COM1_BASE: i32 = 0x3F8;
+
+fun serial_init() {
+    asm_out8(COM1_BASE + 1, 0x00);
+    asm_out8(COM1_BASE + 3, 0x80);
+    asm_out8(COM1_BASE + 0, 0x03);
+    asm_out8(COM1_BASE + 1, 0x00);
+    asm_out8(COM1_BASE + 3, 0x03);
+    asm_out8(COM1_BASE + 2, 0xC7);
+    asm_out8(COM1_BASE + 4, 0x0B);
+    SERIAL_READY = 1;
+}
+
+fun serial_can_tx() -> bool {
+    var lsr: u8 = asm_in8(COM1_BASE + 5);
+    return (lsr & 0x20) != 0;
+}
+
+fun serial_can_rx() -> bool {
+    var lsr: u8 = asm_in8(COM1_BASE + 5);
+    return (lsr & 0x01) != 0;
+}
+
+fun serial_getc() -> u8 {
+    return asm_in8(COM1_BASE);
+}
+
+fun serial_putc(ch: u8) {
+    if (SERIAL_READY == 0) {
+        return;
+    }
+
+    while (!serial_can_tx()) {}
+    asm_out8(COM1_BASE, ch);
+}
+
+fun serial_write(s: str) {
+    var i: i32 = 0;
+    while (s[i] != 0) {
+        serial_putc(s[i]);
+        i += 1;
+    }
+}
+
+fun serial_write_i64(value: i64) {
+    if (value == 0) {
+        serial_write("0");
+        return;
+    }
+
+    var v: i64 = value;
+    if (v < 0) {
+        serial_write("-");
+        v = -v;
+    }
+
+    var div: i64 = 1;
+    while ((v / div) >= 10) {
+        div = div * 10;
+    }
+
+    while (div > 0) {
+        var d: i64 = v / div;
+        if (d == 0) {
+            serial_write("0");
+        } else if (d == 1) {
+            serial_write("1");
+        } else if (d == 2) {
+            serial_write("2");
+        } else if (d == 3) {
+            serial_write("3");
+        } else if (d == 4) {
+            serial_write("4");
+        } else if (d == 5) {
+            serial_write("5");
+        } else if (d == 6) {
+            serial_write("6");
+        } else if (d == 7) {
+            serial_write("7");
+        } else if (d == 8) {
+            serial_write("8");
+        } else {
+            serial_write("9");
+        }
+
+        v = v % div;
+        div = div / 10;
+    }
+}
+
+fun serial_poll_input() {
+    if (SERIAL_READY == 0) {
+        return;
+    }
+
+    while (serial_can_rx()) {
+        var ch: u8 = serial_getc();
+
+        if (ch == 13) {
+            SERIAL_SKIP_LF = 1;
+            console_handle_char(13);
+            continue;
+        }
+
+        if (ch == 10) {
+            if (SERIAL_SKIP_LF != 0) {
+                SERIAL_SKIP_LF = 0;
+                continue;
+            }
+            console_handle_char(13);
+            continue;
+        }
+
+        SERIAL_SKIP_LF = 0;
+
+        if (ch == 127) {
+            ch = 8;
+        }
+
+        console_handle_char(ch);
+    }
+}
