@@ -1,0 +1,44 @@
+fun show_prompt() {
+    term_write("waveos> ");
+}
+
+fun run_command() {
+    if (INPUT_LEN == 0) {
+        return;
+    }
+
+    if (input_eq("help")) {
+        term_write("commands: help clear ticks about reboot\n");
+        return;
+    }
+
+    if (input_eq("clear")) {
+        term_clear();
+        return;
+    }
+
+    if (input_eq("ticks")) {
+        term_write("ticks: ");
+        term_write_i64(TIMER_TICKS);
+        term_putc(10);
+        return;
+    }
+
+    if (input_eq("about")) {
+        term_write("WaveOS kernel (Wave + ASM, modular)\n");
+        return;
+    }
+
+    if (input_eq("reboot")) {
+        term_write("rebooting...\n");
+        asm_disable_interrupts();
+        asm_reboot();
+        while (true) {
+            asm_halt();
+        }
+    }
+
+    term_write("unknown command: ");
+    term_write_buf(&INPUT_BUF[0], INPUT_LEN);
+    term_putc(10);
+}

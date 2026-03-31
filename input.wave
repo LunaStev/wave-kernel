@@ -1,0 +1,49 @@
+fun cstr_len(s: str) -> i32 {
+    var n: i32 = 0;
+    while (s[n] != 0) {
+        n += 1;
+    }
+    return n;
+}
+
+fun input_clear() {
+    INPUT_LEN = 0;
+    INPUT_BUF[0] = 0;
+}
+
+fun input_push(ch: u8) {
+    if (INPUT_LEN >= 127) {
+        return;
+    }
+
+    INPUT_BUF[INPUT_LEN] = ch;
+    INPUT_LEN += 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+}
+
+fun input_pop() -> bool {
+    if (INPUT_LEN <= 0) {
+        return false;
+    }
+
+    INPUT_LEN -= 1;
+    INPUT_BUF[INPUT_LEN] = 0;
+    return true;
+}
+
+fun input_eq(cmd: str) -> bool {
+    var n: i32 = cstr_len(cmd);
+    if (n != INPUT_LEN) {
+        return false;
+    }
+
+    var i: i32 = 0;
+    while (i < n) {
+        if (INPUT_BUF[i] != cmd[i]) {
+            return false;
+        }
+        i += 1;
+    }
+
+    return true;
+}

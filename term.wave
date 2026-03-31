@@ -1,0 +1,167 @@
+fun vga_mem() -> ptr<u8> {
+    return 0xb8000 as ptr<u8>;
+}
+
+fun term_cell_offset(row: i32, col: i32) -> i32 {
+    return (row * VGA_WIDTH + col) * 2;
+}
+
+fun cursor_sync_hw() {
+    var pos: i32 = CUR_ROW * VGA_WIDTH + CUR_COL;
+
+    asm_out8(0x3D4, 0x0F);
+    asm_out8(0x3D5, (pos & 0xFF) as u8);
+
+    asm_out8(0x3D4, 0x0E);
+    asm_out8(0x3D5, ((pos >> 8) & 0xFF) as u8);
+}
+
+fun cursor_init_hw() {
+    asm_out8(0x3D4, 0x0A);
+    asm_out8(0x3D5, 14);
+    asm_out8(0x3D4, 0x0B);
+    asm_out8(0x3D5, 15);
+    cursor_sync_hw();
+}
+
+fun term_put_at(ch: u8, row: i32, col: i32) {
+    var base: ptr<u8> = vga_mem();
+    var off: i32 = term_cell_offset(row, col);
+    mmio_write8(base + off, ch);
+    mmio_write8(base + off + 1, VGA_ATTR);
+}
+
+fun term_clear_row(row: i32) {
+    var c: i32 = 0;
+    while (c < VGA_WIDTH) {
+        term_put_at(' ' as u8, row, c);
+        c += 1;
+    }
+}
+
+fun term_scroll_if_needed() {
+    if (CUR_ROW < VGA_HEIGHT) {
+        return;
+    }
+
+    var base: ptr<u8> = vga_mem();
+    var r: i32 = 1;
+
+    while (r < VGA_HEIGHT) {
+        var c: i32 = 0;
+        while (c < VGA_WIDTH) {
+            var src_off: i32 = term_cell_offset(r, c);
+            var dst_off: i32 = term_cell_offset(r - 1, c);
+            var src_ptr: ptr<u8> = base + src_off;
+            var dst_ptr: ptr<u8> = base + dst_off;
+            var src_attr_ptr: ptr<u8> = src_ptr + 1;
+
+            mmio_write8(dst_ptr, src_ptr[0]);
+            mmio_write8(dst_ptr + 1, src_attr_ptr[0]);
+            c += 1;
+        }
+        r += 1;
+    }
+
+    term_clear_row(VGA_HEIGHT - 1);
+    CUR_ROW = VGA_HEIGHT - 1;
+}
+
+fun term_newline() {
+    CUR_COL = 0;
+    CUR_ROW += 1;
+    term_scroll_if_needed();
+    cursor_sync_hw();
+}
+
+fun term_backspace() {
+    if (CUR_COL > 0) {
+        CUR_COL -= 1;
+        term_put_at(' ' as u8, CUR_ROW, CUR_COL);
+        cursor_sync_hw();
+    }
+}
+
+fun term_putc(ch: u8) {
+    if (ch == 10) {
+        term_newline();
+        return;
+    }
+
+    if (ch == 13) {
+        CUR_COL = 0;
+        cursor_sync_hw();
+        return;
+    }
+
+    if (ch == 8) {
+        term_backspace();
+        return;
+    }
+
+    term_put_at(ch, CUR_ROW, CUR_COL);
+    CUR_COL += 1;
+
+    if (CUR_COL >= VGA_WIDTH) {
+        term_newline();
+        return;
+    }
+
+    cursor_sync_hw();
+}
+
+fun term_write(s: str) {
+    var i: i32 = 0;
+    while (s[i] != 0) {
+        term_putc(s[i]);
+        i += 1;
+    }
+}
+
+fun term_write_buf(buf: ptr<u8>, n: i32) {
+    var i: i32 = 0;
+    while (i < n) {
+        term_putc(buf[i]);
+        i += 1;
+    }
+}
+
+fun term_clear() {
+    var r: i32 = 0;
+    while (r < VGA_HEIGHT) {
+        term_clear_row(r);
+        r += 1;
+    }
+
+    CUR_ROW = 0;
+    CUR_COL = 0;
+    cursor_sync_hw();
+}
+
+fun term_write_i64(value: i64) {
+    if (value == 0) {
+        term_putc('0' as u8);
+        return;
+    }
+
+    var v: i64 = value;
+    if (v < 0) {
+        term_putc('-' as u8);
+        v = -v;
+    }
+
+    var tmp: array<u8, 32>;
+    var len: i32 = 0;
+
+    while (v > 0) {
+        var d: i64 = v % 10;
+        tmp[len] = (d as u8) + ('0' as u8);
+        len += 1;
+        v = v / 10;
+    }
+
+    while (len > 0) {
+        len -= 1;
+        term_putc(tmp[len]);
+    }
+}

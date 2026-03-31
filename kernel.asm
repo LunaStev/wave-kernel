@@ -135,6 +135,13 @@ asm_reboot:
     hlt
     jmp .wait
 
+global asm_out8
+asm_out8:
+    mov dx, di
+    mov al, sil
+    out dx, al
+    ret
+
 ; -----------------------------------------
 ; IDT setup
 ; -----------------------------------------

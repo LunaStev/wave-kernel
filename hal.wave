@@ -1,0 +1,14 @@
+extern(c) {
+    fun asm_enable_interrupts();
+    fun asm_disable_interrupts();
+    fun asm_halt();
+    fun asm_reboot();
+    fun asm_out8(port: i32, value: u8);
+}
+
+fun mmio_write8(addr: ptr<u8>, value: u8) {
+    addr[0] = value;
+    asm {
+        clobber("memory")
+    }
+}

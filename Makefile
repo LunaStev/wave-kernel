@@ -10,6 +10,7 @@ ISO_IMAGE  := waveos.iso
 
 ASM_SRC    := kernel.asm
 WAVE_SRC   := kernel.wave
+WAVE_DEPS  := $(wildcard *.wave)
 LINKER     := link.ld
 
 ASM_OBJ    := $(BUILD_DIR)/kernel_asm.o
@@ -18,7 +19,7 @@ KERNEL_BIN := $(BUILD_DIR)/kernel
 
 all: iso
 
-$(WAVE_OBJ): $(WAVE_SRC)
+$(WAVE_OBJ): $(WAVE_DEPS)
 	@mkdir -p $(BUILD_DIR) target
 	$(WAVEC) build $(WAVE_SRC) -o target/kernel.o -c
 	@mv target/kernel.o $(WAVE_OBJ)

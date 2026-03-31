@@ -1,0 +1,94 @@
+fun scancode_to_ascii(sc: u8) -> u8 {
+    match (sc) {
+        2 => { return '1' as u8; }
+        3 => { return '2' as u8; }
+        4 => { return '3' as u8; }
+        5 => { return '4' as u8; }
+        6 => { return '5' as u8; }
+        7 => { return '6' as u8; }
+        8 => { return '7' as u8; }
+        9 => { return '8' as u8; }
+        10 => { return '9' as u8; }
+        11 => { return '0' as u8; }
+
+        12 => { return '-' as u8; }
+        13 => { return '=' as u8; }
+        14 => { return 8; }
+        15 => { return 9; }
+        28 => { return 13; }
+        57 => { return ' ' as u8; }
+
+        16 => { return 'q' as u8; }
+        17 => { return 'w' as u8; }
+        18 => { return 'e' as u8; }
+        19 => { return 'r' as u8; }
+        20 => { return 't' as u8; }
+        21 => { return 'y' as u8; }
+        22 => { return 'u' as u8; }
+        23 => { return 'i' as u8; }
+        24 => { return 'o' as u8; }
+        25 => { return 'p' as u8; }
+        26 => { return '[' as u8; }
+        27 => { return ']' as u8; }
+
+        30 => { return 'a' as u8; }
+        31 => { return 's' as u8; }
+        32 => { return 'd' as u8; }
+        33 => { return 'f' as u8; }
+        34 => { return 'g' as u8; }
+        35 => { return 'h' as u8; }
+        36 => { return 'j' as u8; }
+        37 => { return 'k' as u8; }
+        38 => { return 'l' as u8; }
+        39 => { return ';' as u8; }
+        40 => { return '\'' as u8; }
+        43 => { return '\\' as u8; }
+
+        44 => { return 'z' as u8; }
+        45 => { return 'x' as u8; }
+        46 => { return 'c' as u8; }
+        47 => { return 'v' as u8; }
+        48 => { return 'b' as u8; }
+        49 => { return 'n' as u8; }
+        50 => { return 'm' as u8; }
+        51 => { return ',' as u8; }
+        52 => { return '.' as u8; }
+        53 => { return '/' as u8; }
+        _ => { return 0; }
+    }
+
+    return 0;
+}
+
+fun k_on_keyboard_scancode(scancode: i32) {
+    if ((scancode & 0x80) != 0) {
+        return;
+    }
+
+    var c: u8 = scancode_to_ascii(scancode as u8);
+    if (c == 0) {
+        return;
+    }
+
+    if (c == 9) {
+        return;
+    }
+
+    if (c == 8) {
+        if (input_pop()) {
+            term_backspace();
+        }
+        return;
+    }
+
+    if (c == 13) {
+        term_newline();
+        run_command();
+        input_clear();
+        show_prompt();
+        return;
+    }
+
+    input_push(c);
+    term_putc(c);
+}
