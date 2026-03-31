@@ -41,6 +41,6 @@ run: iso
 	$(QEMU) -cdrom $(ISO_IMAGE) -serial stdio
 
 clean:
-	rm -rf $(BUILD_DIR) $(ISO_DIR) $(ISO_IMAGE) target
+	rm -rf $(BUILD_DIR) $(ISO_DIR) $(ISO_IMAGE) target *.o
 
 .PHONY: all kernel iso run clean
